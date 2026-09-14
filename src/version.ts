@@ -1,0 +1,2 @@
+// Leaf module: imports nothing, so the --version fast path stays cheap.
+export const VERSION = "0.1.0";

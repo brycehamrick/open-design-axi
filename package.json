@@ -1,0 +1,53 @@
+{
+  "name": "open-design-axi",
+  "version": "0.1.0",
+  "description": "AXI-compliant CLI for OpenDesign — list projects, read and write design files, bundle artifacts, and drive generation runs from the shell, with offline reads straight from the local data directory. Spec axi/1.0-2026-07.",
+  "type": "module",
+  "bin": {
+    "open-design-axi": "bin/open-design-axi.js"
+  },
+  "engines": {
+    "node": ">=22.5.0"
+  },
+  "files": [
+    "bin",
+    "dist",
+    "skills",
+    "README.md",
+    "LICENSE"
+  ],
+  "scripts": {
+    "build": "node --eval \"require('node:fs').rmSync('dist',{recursive:true,force:true})\" && tsc",
+    "pretest": "npm run build",
+    "test": "vitest run",
+    "typecheck": "tsc --noEmit",
+    "skill:gen": "node scripts/gen-skill.mjs",
+    "skill:check": "node scripts/gen-skill.mjs --check"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/brycehamrick/open-design-axi.git"
+  },
+  "keywords": [
+    "axi",
+    "open-design",
+    "opendesign",
+    "cli",
+    "agents",
+    "design"
+  ],
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/brycehamrick/open-design-axi/issues"
+  },
+  "homepage": "https://github.com/brycehamrick/open-design-axi#readme",
+  "dependencies": {
+    "@toon-format/toon": "^4.1.1",
+    "axi-sdk-js": "^0.1.11"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.0",
+    "typescript": "^5.7.0",
+    "vitest": "^3.2.7"
+  }
+}
