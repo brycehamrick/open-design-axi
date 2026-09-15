@@ -25,4 +25,12 @@ describe("version fast path", () => {
     // parity test above covers semantics; 1500ms covers cold CI filesystems
     expect(elapsedMs).toBeLessThan(1500);
   });
+
+  it("VERSION matches package.json so releases can't drift from --version", async () => {
+    const { readFile } = await import("node:fs/promises");
+    const pkg = JSON.parse(await readFile(new URL("../package.json", import.meta.url), "utf8")) as {
+      version: string;
+    };
+    expect(VERSION).toBe(pkg.version);
+  });
 });
