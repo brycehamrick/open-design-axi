@@ -1,6 +1,6 @@
 {
   "name": "open-design-axi",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "AXI-compliant CLI for OpenDesign — list projects, read and write design files, bundle artifacts, and drive generation runs from the shell, with offline reads straight from the local data directory. Spec axi/1.0-2026-07.",
   "type": "module",
   "bin": {
