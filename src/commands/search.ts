@@ -57,6 +57,6 @@ export async function searchCommand(argv: string[]): Promise<Record<string, unkn
     ...(shown.length < matches.length
       ? { note: `showing ${shown.length} of ${matches.length} — raise --max for more` }
       : {}),
-    help: [`Run \`open-design-axi read ${shortId(resolved.id) ?? "<id>"} <path>\` to view a hit in context`],
+    help: [`Run \`open-design-axi read ${resolved.displayRef} <path>\` to view a hit in context`],
   };
 }

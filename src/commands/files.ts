@@ -85,7 +85,7 @@ export async function filesCommand(argv: string[]): Promise<Record<string, unkno
   const hint = limitHelpLine("files", selection.shown, selection.total, flags.limit as number);
   out.help = [
     ...(hint ? [hint] : []),
-    `Run \`open-design-axi read ${shortId(resolved.id) ?? "<id>"} <path>\` to view a file`,
+    `Run \`open-design-axi read ${resolved.displayRef} <path>\` to view a file`,
   ];
   return out;
 }

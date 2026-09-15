@@ -1,6 +1,6 @@
 import { collapseHomeDirectory } from "../util.js";
 import { parseCommandArgs } from "../args.js";
-import { epochSeconds, isoSeconds, shortId } from "../format.js";
+import { epochSeconds, isoSeconds } from "../format.js";
 import { resolveProject } from "../project.js";
 import { loadRuntime, requireOfflineStore } from "./shared.js";
 
@@ -55,12 +55,12 @@ export async function projectCommand(argv: string[]): Promise<Record<string, unk
     if (data?.resolvedDir) out.resolved_dir = collapseHomeDirectory(data.resolvedDir);
     if (entry) {
       out.preview_url = `${runtime.api.baseUrl}/api/projects/${encodeURIComponent(resolved.id)}/raw/${encodePath(entry)}`;
-      help.push(`Run \`open-design-axi read ${shortId(resolved.id) ?? "<id>"} ${entry}\` to view the entry file`);
-      help.push(`Run \`open-design-axi artifact ${shortId(resolved.id) ?? "<id>"}\` to pull the full bundle`);
+      help.push(`Run \`open-design-axi read ${resolved.displayRef} ${entry}\` to view the entry file`);
+      help.push(`Run \`open-design-axi artifact ${resolved.displayRef}\` to pull the full bundle`);
     } else {
       help.push("No entry file yet — generate one with `run start <id|name> --prompt \"...\" --confirm`");
     }
-    help.push(`Run \`open-design-axi run start ${shortId(resolved.id) ?? "<id>"} --prompt "<brief>" --confirm\` to iterate`);
+    help.push(`Run \`open-design-axi run start ${resolved.displayRef} --prompt "<brief>" --confirm\` to iterate`);
   } else {
     requireOfflineStore(runtime);
     const offlineProject = (await runtime.offline.listProjects()).find((p) => p.id === resolved.id) ?? null;
@@ -80,8 +80,8 @@ export async function projectCommand(argv: string[]): Promise<Record<string, unk
     out.updated = offlineProject?.updatedAt ? `${epochSeconds(offlineProject.updatedAt)} (${isoSeconds(offlineProject.updatedAt)})` : null;
     out.resolved_dir = collapseHomeDirectory(await runtime.offline.projectDir(resolved.id));
     if (entry) {
-      help.push(`Run \`open-design-axi read ${shortId(resolved.id) ?? "<id>"} ${entry}\` (offline read)`);
-      help.push(`Run \`open-design-axi artifact ${shortId(resolved.id) ?? "<id>"}\` to pull the full bundle (offline)`);
+      help.push(`Run \`open-design-axi read ${resolved.displayRef} ${entry}\` (offline read)`);
+      help.push(`Run \`open-design-axi artifact ${resolved.displayRef}\` to pull the full bundle (offline)`);
     }
     help.push("Start the OpenDesign app for live preview URLs and generation runs");
   }

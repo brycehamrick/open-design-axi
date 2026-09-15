@@ -96,17 +96,30 @@ export async function writeCommand(argv: string[]): Promise<Record<string, unkno
     { workspace: true },
   )) as { file?: { name: string; size?: number }; version?: { version?: number } | null };
 
+  // The daemon sanitizes leading-dot path segments (".x.html" → "_x.html"),
+  // so its returned name — not the requested path — is authoritative for
+  // every follow-up (read, preview URL).
+  const writtenName = result?.file?.name ?? relPath;
+  const renamed = writtenName !== relPath;
+
   const out: Record<string, unknown> = {
-    written: result?.file?.name ?? relPath,
+    written: writtenName,
     project: resolved.name ?? shortId(resolved.id),
     size: formatBytes(Buffer.byteLength(content, "utf8")),
   };
+  if (renamed) out.requested = relPath;
   if (result?.version?.version != null) out.version_captured = result.version.version;
   if (flags.artifact === true) out.artifact = true;
-  out.help = [
-    `Run \`open-design-axi read ${shortId(resolved.id) ?? "<id>"} ${relPath}\` to verify the write`,
-    `Preview: ${runtime.api.baseUrl}/api/projects/${encodeURIComponent(resolved.id)}/raw/${encodePath(relPath)}`,
+  const help = [
+    `Run \`open-design-axi read ${resolved.displayRef} ${writtenName}\` to verify the write`,
+    `Preview: ${runtime.api.baseUrl}/api/projects/${encodeURIComponent(resolved.id)}/raw/${encodePath(writtenName)}`,
   ];
+  if (renamed) {
+    help.push(
+      "The daemon renames leading-dot path segments to start with '_' — use the sanitized name above",
+    );
+  }
+  out.help = help;
   return out;
 }
 

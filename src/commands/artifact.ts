@@ -151,7 +151,7 @@ export async function artifactCommand(argv: string[]): Promise<string> {
     }
   }
 
-  const help = [`Run \`open-design-axi read ${shortId(resolved.id) ?? "<id>"} <path>\` for a windowed view of one file`];
+  const help = [`Run \`open-design-axi read ${resolved.displayRef} <path>\` for a windowed view of one file`];
   if (include !== "all") help.push("Run `open-design-axi artifact <id|name> --include all` for every project file");
   const helpBlock = `help[${help.length}]: ${help.join(" | ")}`;
 

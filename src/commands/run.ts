@@ -2,7 +2,7 @@ import { randomUUID } from "node:crypto";
 import { AxiError } from "axi-sdk-js";
 import { parseCommandArgs } from "../args.js";
 import { shortId, truncate } from "../format.js";
-import { resolveProject } from "../project.js";
+import { resolveProject, displayRefFor } from "../project.js";
 import { loadRuntime, requireOnline, requireConfirm, requireOfflineStore, type Runtime } from "./shared.js";
 
 /**
@@ -187,7 +187,9 @@ export async function renderRunBlock(run: RunStatusBody, runtime: Runtime, full:
   const help: string[] = [];
   if (isTerminal(run.status)) {
     if (run.status === "succeeded" && run.projectId != null) {
-      help.push(`Run \`open-design-axi artifact ${shortId(run.projectId)}\` to pull the generated design`);
+      // No project catalog in hand here — displayRefFor falls back to the
+      // full id for slug projects so the ref still resolves when pasted.
+      help.push(`Run \`open-design-axi artifact ${displayRefFor(run.projectId, null)}\` to pull the generated design`);
     }
     if (run.status === "failed" && run.retryable !== false) {
       help.push('Run `open-design-axi run start <id|name> --prompt "<brief>" --confirm` to retry');

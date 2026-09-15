@@ -8,6 +8,7 @@ import { artifactCommand } from "../src/commands/artifact.js";
 import { runsCommand } from "../src/commands/runs.js";
 import { writeCommand, deleteFileCommand } from "../src/commands/write.js";
 import { runCommand } from "../src/commands/run.js";
+import { projectCommand } from "../src/commands/project.js";
 import { BASE, UUID_A, UUID_B, fixtureDir, jsonResponse, daemonStatusFetch } from "./helpers.js";
 import { writeFile } from "node:fs/promises";
 import { join } from "node:path";
@@ -54,6 +55,57 @@ describe("projects", () => {
     stubFetch({});
     await expect(projectsCommand(["create", "--name", "x", ...online()])).rejects.toMatchObject({
       code: "CONFIRM_REQUIRED",
+    });
+  });
+
+  describe("ref resolution", () => {
+    const slugProjects = {
+      projects: [
+        { id: "aurora-site-prod-ab12", name: "Aurora Site Prod" },
+        { id: "aurora-site-preview-cd34", name: "Aurora Site Preview" },
+      ],
+    };
+
+    it("resolves a copied 8-char slug-id prefix instead of NOT_FOUND", async () => {
+      stubFetch({
+        [`${BASE}/api/projects`]: () => jsonResponse(200, slugProjects),
+        [`${BASE}/api/projects/aurora-site-prod-ab12$`]: () =>
+          jsonResponse(200, { project: { metadata: { entryFile: "index.html" } } }),
+        [`${BASE}/api/projects/aurora-site-prod-ab12/files`]: () => jsonResponse(200, { files: [] }),
+      });
+      const out = await projectCommand(["aurora-site-pro", ...online()]);
+      expect(out.id).toBe("aurora-site-prod-ab12");
+    });
+
+    it("an ambiguous prefix lists the matching projects instead of a bare NOT_FOUND", async () => {
+      stubFetch({ [`${BASE}/api/projects`]: () => jsonResponse(200, slugProjects) });
+      await expect(projectCommand(["aurora-site", ...online()])).rejects.toThrow(
+        /ambiguous across 2 projects: aurora-s Aurora Site Prod; aurora-s Aurora Site Preview/,
+      );
+      await expect(projectCommand(["aurora-site", ...online()])).rejects.toMatchObject({
+        code: "AMBIGUOUS",
+      });
+    });
+
+    it("help lines print a paste-safe ref when printed prefixes collide", async () => {
+      const colliding = {
+        projects: [
+          { id: "aurora-labs-site-ab12", name: "Aurora Labs Site" },
+          { id: "aurora-labs-deck-cd34", name: "Aurora Labs Deck" },
+        ],
+      };
+      stubFetch({
+        [`${BASE}/api/projects`]: () => jsonResponse(200, colliding),
+        [`${BASE}/api/projects/aurora-labs-deck-cd34$`]: () =>
+          jsonResponse(200, { project: { metadata: { entryFile: "DESIGN.md" } } }),
+        [`${BASE}/api/projects/aurora-labs-deck-cd34/files`]: () =>
+          jsonResponse(200, { files: [] }),
+      });
+      const out = await projectCommand(["Deck", ...online()]);
+      expect(out.id).toBe("aurora-labs-deck-cd34");
+      const help = (out.help as string[]).join(" ");
+      expect(help).toContain("aurora-labs-deck-cd34");
+      expect(help).not.toContain("read aurora-l ");
     });
   });
 });
@@ -217,6 +269,30 @@ describe("mutation gates", () => {
     await expect(
       writeCommand([UUID_A, "x.html", "--stdin", "--confirm", ...offline()]),
     ).rejects.toMatchObject({ code: "DAEMON_UNAVAILABLE" });
+  });
+
+  it("write reports the daemon-sanitized name in output and follow-up help", async () => {
+    stubFetch({
+      [`${BASE}/api/projects/${UUID_A}/files`]: () =>
+        jsonResponse(200, { file: { name: "sub/_x.html", size: 12 }, version: { version: 7 } }),
+    });
+    const srcFile = join(fixtureDir, "..", "write-src.html");
+    await writeFile(srcFile, "<p>x</p>");
+    const out = (await writeCommand([
+      UUID_A,
+      "sub/.x.html",
+      "--file",
+      srcFile,
+      "--confirm",
+      ...online(),
+    ])) as Record<string, unknown>;
+    expect(out.written).toBe("sub/_x.html");
+    expect(out.requested).toBe("sub/.x.html");
+    const help = (out.help as string[]).join(" ");
+    expect(help).toContain("read 11111111 sub/_x.html");
+    expect(help).toContain("raw/sub/_x.html");
+    expect(help).not.toContain(".x.html");
+    expect(help).toContain("leading-dot");
   });
 
   it("delete file gate", async () => {

@@ -59,6 +59,9 @@ cat index.html | open-design-axi write <ref> index.html --stdin --confirm
 open-design-axi write <ref> assets/logo.svg --file ./logo.svg --confirm
 open-design-axi write <ref> index.html --stdin --artifact --confirm   # register as artifact
 open-design-axi delete <ref> draft.html --confirm
+# Note: the daemon sanitizes leading-dot path segments (".x.html" → "_x.html").
+# `write` prints the sanitized name as `written` (plus `requested` when it
+# differs) and points help/preview URLs at it — always use the returned name.
 
 # Generation runs (the daemon spawns its own agent; 5–30 min typical)
 open-design-axi run start <ref> --prompt "Redesign the hero" --skill deck-swiss --confirm
@@ -73,7 +76,7 @@ open-design-axi setup                 # install SessionStart hooks (Claude Code,
 open-design-axi setup --remove
 ```
 
-`<ref>` accepts a project id (the 8-char prefix list views print), an exact name, or a unique name substring; omitted or `active` resolves the project open in the app. Every command takes the globals `--daemon-url` and `--data-dir`. `--help` on any command prints its concise reference.
+`<ref>` accepts a project id (the 8-char prefix list views print — this works for slug ids like `aurora-site-…` as well as uuids), an exact name, or a unique name substring; omitted or `active` resolves the project open in the app. An ambiguous prefix/substring fails with `AMBIGUOUS` and lists the matching projects. Help lines always print a paste-safe ref: the 8-char prefix when it resolves uniquely, otherwise the full id. Every command takes the globals `--daemon-url` and `--data-dir`. `--help` on any command prints its concise reference.
 
 ## Safety gate
 

@@ -2,7 +2,7 @@ import { randomUUID } from "node:crypto";
 import { AxiError } from "axi-sdk-js";
 import { parseCommandArgs } from "../args.js";
 import { epochSeconds, selectRows, shortId, limitHelpLine } from "../format.js";
-import { listProjectCandidates, matchProject } from "../project.js";
+import { listProjectCandidates, matchProject, conclude } from "../project.js";
 import { loadRuntime, requireOnline, requireConfirm, type Runtime } from "./shared.js";
 
 /**
@@ -237,30 +237,12 @@ async function deleteProject(argv: string[]): Promise<Record<string, unknown>> {
   };
 }
 
+/** Shared resolution outcome handling — single AMBIGUOUS/NOT_FOUND surface. */
 export function concludeMatch(
   matched: ReturnType<typeof matchProject>,
   ref: string,
 ): { id: string; name: string | null } {
-  if ("ambiguous" in matched) {
-    const candidates = matched.ambiguous;
-    if (candidates.length === 0) {
-      throw new AxiError(
-        `no project matches "${ref}"`,
-        "NOT_FOUND",
-        ["Run `open-design-axi projects` to list ids and names"],
-      );
-    }
-    const list = candidates
-      .slice(0, 5)
-      .map((c) => `${c.id.slice(0, 8)} ${c.name ?? "(unnamed)"}`)
-      .join("; ");
-    throw new AxiError(
-      `"${ref}" is ambiguous across ${candidates.length} projects: ${list}`,
-      "AMBIGUOUS",
-      ["Use the full id or a unique name substring"],
-    );
-  }
-  return { id: matched.id, name: matched.name };
+  return conclude(matched, ref, null);
 }
 
 function slugifyProjectId(name: string): string {

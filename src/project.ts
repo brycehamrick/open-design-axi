@@ -7,6 +7,9 @@ import type { OfflineStore } from "./offline.js";
  * views print), an exact name, or a unique name substring. When the caller
  * omits the reference (or passes "active"), resolve the daemon's active
  * context — the project the user has open in the app right now.
+ *
+ * Every resolution also carries a paste-safe `displayRef` for help lines:
+ * the printed 8-char prefix when unique, otherwise the full id.
  */
 
 export interface ProjectCandidate {
@@ -19,7 +22,17 @@ export interface ResolvedProject {
   name: string | null;
   via: "id" | "id-prefix" | "name" | "name-substring" | "active";
   activeFileName: string | null;
+  /**
+   * Paste-safe ref for help lines: the 8-char prefix list views print,
+   * unless that prefix is shared with another project (slug ids often
+   * collide), in which case the full id. Anything printed in help[]
+   * resolves when pasted back.
+   */
+  displayRef: string;
 }
+
+/** A resolution before displayRef is checked against the catalog. */
+export type MatchedProject = Omit<ResolvedProject, "displayRef">;
 
 export interface ActiveContext {
   projectId: string;
@@ -86,7 +99,7 @@ async function currentWorkspaceId(api: DaemonApi): Promise<string | null> {
   }
 }
 
-export function matchProject(candidates: ProjectCandidate[], ref: string): ResolvedProject | { ambiguous: ProjectCandidate[] } {
+export function matchProject(candidates: ProjectCandidate[], ref: string): MatchedProject | { ambiguous: ProjectCandidate[] } {
   const trimmed = ref.trim();
   if (trimmed.length === 0) {
     return { ambiguous: [] };
@@ -98,11 +111,12 @@ export function matchProject(candidates: ProjectCandidate[], ref: string): Resol
   if (byName.length === 1) return project(byName[0]!, "name");
   if (byName.length > 1) return { ambiguous: byName };
 
-  if (isUuidLike(trimmed)) {
-    const byPrefix = candidates.filter((c) => c.id.toLowerCase().startsWith(trimmed.toLowerCase()));
-    if (byPrefix.length === 1) return project(byPrefix[0]!, "id-prefix");
-    if (byPrefix.length > 1) return { ambiguous: byPrefix };
-  }
+  // Prefix-match every ref: list views print 8-char id prefixes, and ids
+  // are often slugs ("aurora-site-…"), not uuids, so a hex-shape guard would
+  // make copied prefixes unresolvable.
+  const byPrefix = candidates.filter((c) => c.id.toLowerCase().startsWith(trimmed.toLowerCase()));
+  if (byPrefix.length === 1) return project(byPrefix[0]!, "id-prefix");
+  if (byPrefix.length > 1) return { ambiguous: byPrefix };
 
   const bySubstring = candidates.filter(
     (c) => c.name != null && c.name.toLowerCase().includes(trimmed.toLowerCase()),
@@ -113,16 +127,30 @@ export function matchProject(candidates: ProjectCandidate[], ref: string): Resol
   return { ambiguous: [] };
 }
 
-function project(candidate: ProjectCandidate, via: ResolvedProject["via"]): ResolvedProject {
+function project(candidate: ProjectCandidate, via: MatchedProject["via"]): MatchedProject {
   return { id: candidate.id, name: candidate.name, via, activeFileName: null };
 }
 
-export function uuidLike(ref: string): boolean {
-  return /^[0-9a-f]{4,36}$/i.test(ref);
+/**
+ * The ref to print in help lines: what list views print (8-char prefix), or
+ * the full id when that prefix is shared with another project. Without a
+ * catalog in hand (active-context resolution), uuid prefixes are trusted
+ * and slug ids print in full because their prefixes can collide.
+ */
+export function displayRefFor(id: string, candidates: ProjectCandidate[] | null): string {
+  const printed = id.length > 12 ? id.slice(0, 8) : id;
+  if (printed === id) return id;
+  if (candidates != null) {
+    const shared = candidates.some(
+      (c) => c.id !== id && c.id.toLowerCase().startsWith(printed.toLowerCase()),
+    );
+    return shared ? id : printed;
+  }
+  return looksUuid(id) ? printed : id;
 }
 
-export function isUuidLike(ref: string): boolean {
-  return /^[0-9a-f]{8,36}(-[0-9a-f]{4}){0,3}$/i.test(ref);
+function looksUuid(id: string): boolean {
+  return /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id);
 }
 
 export async function resolveProject(
@@ -150,6 +178,7 @@ export async function resolveProject(
         name: active.projectName,
         via: "active",
         activeFileName: active.fileName,
+        displayRef: displayRefFor(active.projectId, null),
       };
     }
     const candidates = await listProjectCandidates(deps.api);
@@ -159,10 +188,11 @@ export async function resolveProject(
         name: active.projectName,
         via: "id",
         activeFileName: active.fileName,
+        displayRef: displayRefFor(active.projectId, candidates),
       };
     }
-    const matched = matchProject(candidates, wanted);
-    return conclude(matched, wanted, active);
+    const matched = conclude(matchProject(candidates, wanted), wanted, active);
+    return { ...matched, displayRef: displayRefFor(matched.id, candidates) };
   }
 
   // Offline: no active context, resolve purely from the local catalog.
@@ -176,14 +206,15 @@ export async function resolveProject(
       ["Pass a project id or name explicitly: `open-design-axi projects` lists them (offline mode)"],
     );
   }
-  return conclude(matchProject(candidates, wanted!), wanted!, null);
+  const resolved = conclude(matchProject(candidates, wanted!), wanted!, null);
+  return { ...resolved, displayRef: displayRefFor(resolved.id, candidates) };
 }
 
-function conclude(
-  matched: ResolvedProject | { ambiguous: ProjectCandidate[] },
+export function conclude(
+  matched: MatchedProject | { ambiguous: ProjectCandidate[] },
   wanted: string,
   active: ActiveContext | null,
-): ResolvedProject {
+): MatchedProject {
   if ("ambiguous" in matched) {
     const candidates = matched.ambiguous;
     if (candidates.length === 0) {
