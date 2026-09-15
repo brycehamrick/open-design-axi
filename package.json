@@ -22,7 +22,8 @@
     "test": "vitest run",
     "typecheck": "tsc --noEmit",
     "skill:gen": "node scripts/gen-skill.mjs",
-    "skill:check": "node scripts/gen-skill.mjs --check"
+    "skill:check": "node scripts/gen-skill.mjs --check",
+    "prepublishOnly": "npm run skill:check && npm run typecheck && npm test"
   },
   "repository": {
     "type": "git",
